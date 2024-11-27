@@ -11,3 +11,4 @@ numpy>=1.22.5
 duckdb==0.9.2
 typing-inspect==0.8.0
 overrides==7.3.1
+tiktoken==0.5.1
