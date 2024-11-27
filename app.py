@@ -1,5 +1,4 @@
 import streamlit as st
-import tempfile
 import os
 from pdf_processor import PDFProcessor
 from rag_engine import RAGEngine
@@ -22,95 +21,106 @@ if 'processed_file' not in st.session_state:
     st.session_state.processed_file = False
 
 # Page config
-st.set_page_config(page_title="Concept Definition Chatbot", layout="wide")
-st.title("Concept Definition Chatbot")
+st.set_page_config(
+    page_title="CRE Knowledge Assistant",
+    page_icon="🏢",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Sidebar for PDF upload
+# Custom CSS
+st.markdown("""
+    <style>
+    .stApp {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .main-header {
+        font-size: 2.5rem;
+        color: #1E3A8A;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    .chat-container {
+        background-color: #F3F4F6;
+        padding: 2rem;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+    }
+    .sidebar-content {
+        padding: 1.5rem;
+        background-color: #F8FAFC;
+        border-radius: 0.5rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Main content
+st.markdown('<h1 class="main-header">Commercial Real Estate Knowledge Assistant</h1>', unsafe_allow_html=True)
+
+# Initialize RAG engine with pre-loaded PDF if not already done
+if not st.session_state.processed_file:
+    with st.spinner("Initializing knowledge base..."):
+        try:
+            # Process the pre-loaded PDF
+            pdf_path = os.path.join("Dataset", "Commercial Lending 101.pdf")
+            processor = PDFProcessor()
+            chunks = processor.process_pdf(pdf_path)
+            
+            # Initialize RAG engine
+            st.session_state.rag_engine.initialize_vector_store(chunks)
+            st.session_state.processed_file = True
+        except Exception as e:
+            st.error(f"Error initializing knowledge base: {str(e)}")
+            st.stop()
+
+# Sidebar with information
 with st.sidebar:
-    st.header("Upload PDF")
-    uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+    st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
+    st.image("https://raw.githubusercontent.com/tony-42069/cre-chatbot-rag/main/Dataset/commercial-lending-101.png", 
+             use_column_width=True)
+    st.markdown("""
+    ### About
+    This AI assistant is trained on commercial real estate knowledge and can help you understand:
+    - Commercial lending concepts
+    - Real estate terminology
+    - Market analysis
+    - Investment strategies
     
-    if uploaded_file is not None and not st.session_state.processed_file:
-        with st.spinner("Processing PDF..."):
+    ### How to Use
+    Simply type your question in the chat box below and press Enter. The assistant will provide detailed answers based on the commercial real estate knowledge base.
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Chat interface
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Chat input
+if prompt := st.chat_input("Ask me anything about commercial real estate..."):
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Display user message
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Generate response
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
             try:
-                # Save uploaded file temporarily
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-                    tmp_file.write(uploaded_file.getvalue())
-                    tmp_path = tmp_file.name
-                
-                # Process PDF
-                processor = PDFProcessor()
-                chunks = processor.process_pdf(tmp_path)
-                
-                # Initialize RAG engine
-                st.session_state.rag_engine.initialize_vector_store(chunks)
-                st.session_state.processed_file = True
-                
-                # Clean up
-                os.unlink(tmp_path)
-            except ValueError as e:
-                st.error(f"Configuration Error: {str(e)}")
-                st.stop()
-            except ConnectionError as e:
-                st.error(f"Connection Error: {str(e)}")
-                st.stop()
+                response = st.session_state.rag_engine.get_response(prompt)
+                st.markdown(response)
+                # Add assistant response to chat history
+                st.session_state.messages.append({"role": "assistant", "content": response})
             except Exception as e:
-                st.error(f"Unexpected Error: {str(e)}")
-                st.stop()
-        st.success("PDF processed successfully!")
+                st.error(f"Error generating response: {str(e)}")
 
-# Main chat interface
-if st.session_state.processed_file:
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Display chat messages
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-            if "sources" in message:
-                with st.expander("View Sources"):
-                    for source in message["sources"]:
-                        st.markdown(f"**Page {source['page']}:**\n{source['text']}")
-
-    # Chat input
-    if prompt := st.chat_input("Ask a question about the concepts in your PDF"):
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Display user message
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Get bot response
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = st.session_state.rag_engine.answer_question(prompt)
-                    
-                    # Display response
-                    st.markdown(response["answer"])
-                    
-                    # Display sources in expander
-                    with st.expander("View Sources"):
-                        for source in response["sources"]:
-                            st.markdown(f"**Page {source['page']}:**\n{source['text']}")
-                    
-                    # Add assistant response to chat history
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": response["answer"],
-                        "sources": response["sources"]
-                    })
-                except ValueError as e:
-                    st.error(f"Configuration Error: {str(e)}")
-                    st.stop()
-                except ConnectionError as e:
-                    st.error(f"Connection Error: {str(e)}")
-                    st.stop()
-                except Exception as e:
-                    st.error(f"Unexpected Error: {str(e)}")
-                    st.stop()
-else:
-    st.info("Please upload a PDF file to start chatting.")
+st.markdown('</div>', unsafe_allow_html=True)
