@@ -1,4 +1,5 @@
 from typing import List, Dict
+import pypdf
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -19,24 +20,44 @@ class PDFProcessor:
             pdf_path (str): Path to the PDF file
             
         Returns:
-            List[Dict]: List of dictionaries containing text chunks and metadata
+            List[Dict]: List of text chunks with metadata
         """
-        # Load PDF
-        loader = PyPDFLoader(pdf_path)
-        pages = loader.load()
-        
-        # Split text into chunks
-        chunks = self.text_splitter.split_documents(pages)
-        
-        # Format chunks with metadata
-        processed_chunks = []
-        for chunk in chunks:
-            processed_chunks.append({
-                'text': chunk.page_content,
-                'metadata': {
-                    'page': chunk.metadata.get('page', 0) + 1,
-                    'source': pdf_path
-                }
-            })
-        
-        return processed_chunks
+        try:
+            # Try using PyPDFLoader from langchain
+            loader = PyPDFLoader(pdf_path)
+            pages = loader.load()
+            
+            # Split the text into chunks
+            chunks = []
+            for page in pages:
+                page_chunks = self.text_splitter.split_text(page.page_content)
+                for chunk in page_chunks:
+                    chunks.append({
+                        'text': chunk,
+                        'metadata': {'page': page.metadata['page']}
+                    })
+            return chunks
+            
+        except Exception as e:
+            print(f"Error with PyPDFLoader: {str(e)}")
+            print("Trying alternative PDF processing method...")
+            
+            # Fallback to direct pypdf usage
+            try:
+                with open(pdf_path, 'rb') as file:
+                    pdf = pypdf.PdfReader(file)
+                    chunks = []
+                    
+                    for page_num in range(len(pdf.pages)):
+                        text = pdf.pages[page_num].extract_text()
+                        page_chunks = self.text_splitter.split_text(text)
+                        
+                        for chunk in page_chunks:
+                            chunks.append({
+                                'text': chunk,
+                                'metadata': {'page': page_num + 1}
+                            })
+                    return chunks
+                    
+            except Exception as e2:
+                raise Exception(f"Failed to process PDF with both methods. Error: {str(e2)}")
