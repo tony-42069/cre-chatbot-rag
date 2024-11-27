@@ -1,3 +1,14 @@
+---
+title: CRE Knowledge Assistant
+emoji: 🏢
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: "1.27.2"
+app_file: app.py
+pinned: false
+---
+
 # Commercial Real Estate Knowledge Assistant
 
 ![Commercial Lending 101](Dataset/commercial-lending-101.png)
