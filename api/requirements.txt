@@ -1,0 +1,7 @@
+azure-functions==1.15.0
+openai==1.6.1
+python-dotenv==1.0.0
+azure-cognitiveservices-language-textanalytics==0.2.0
+PyPDF2==3.0.1
+langchain==0.0.352
+azure-storage-blob==12.19.0
