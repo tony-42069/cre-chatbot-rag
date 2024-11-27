@@ -21,6 +21,14 @@ class RAGEngine:
             'AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME'
         ]
         
+        # Debug: Print environment variables (without sensitive values)
+        print("Checking environment variables...")
+        for var in required_vars:
+            if not os.getenv(var):
+                print(f"Missing {var}")
+            else:
+                print(f"Found {var}")
+        
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise ValueError(f"Missing required Azure OpenAI settings: {', '.join(missing_vars)}")
