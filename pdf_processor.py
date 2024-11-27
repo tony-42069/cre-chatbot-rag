@@ -6,11 +6,12 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 class PDFProcessor:
     def __init__(self):
+        # Adjust text splitter settings for more lenient chunking
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=500,  # Smaller chunks
+            chunk_overlap=50,  # Less overlap
             length_function=len,
-            separators=["\n\n", "\n", " ", ""]
+            separators=["\n\n", "\n", ".", " ", ""]  # More granular separators
         )
     
     def process_pdf(self, pdf_path: str) -> List[Dict]:
@@ -39,6 +40,11 @@ class PDFProcessor:
             
             if not pages:
                 raise ValueError("No pages extracted from PDF")
+            
+            # Debug: Print raw content from first few pages
+            for i, page in enumerate(pages[:2]):
+                print(f"\nPage {i+1} preview (first 200 chars):")
+                print(page.page_content[:200])
                 
             # Split the text into chunks
             chunks = []
@@ -46,15 +52,23 @@ class PDFProcessor:
                 if not page.page_content.strip():
                     print(f"Warning: Empty content on page {page.metadata.get('page', 'unknown')}")
                     continue
-                    
-                page_chunks = self.text_splitter.split_text(page.page_content)
-                print(f"Created {len(page_chunks)} chunks from page {page.metadata.get('page', 'unknown')}")
                 
-                for chunk in page_chunks:
-                    chunks.append({
-                        'text': chunk,
-                        'metadata': {'page': page.metadata['page']}
-                    })
+                # Debug: Print content length
+                content = page.page_content.strip()
+                print(f"Page {page.metadata.get('page', 'unknown')} content length: {len(content)} chars")
+                
+                try:
+                    page_chunks = self.text_splitter.split_text(content)
+                    print(f"Created {len(page_chunks)} chunks from page {page.metadata.get('page', 'unknown')}")
+                    
+                    for chunk in page_chunks:
+                        if chunk.strip():  # Only add non-empty chunks
+                            chunks.append({
+                                'text': chunk,
+                                'metadata': {'page': page.metadata['page']}
+                            })
+                except Exception as chunk_error:
+                    print(f"Error splitting page {page.metadata.get('page', 'unknown')}: {str(chunk_error)}")
             
             if not chunks:
                 raise ValueError("No text chunks created from PDF")
@@ -73,22 +87,35 @@ class PDFProcessor:
                 with open(pdf_path, 'rb') as file:
                     pdf = pypdf.PdfReader(file)
                     print(f"Successfully opened PDF with {len(pdf.pages)} pages")
-                    chunks = []
                     
+                    # Debug: Print raw content from first few pages
+                    for i in range(min(2, len(pdf.pages))):
+                        print(f"\nPage {i+1} preview (first 200 chars):")
+                        print(pdf.pages[i].extract_text()[:200])
+                    
+                    chunks = []
                     for page_num in range(len(pdf.pages)):
                         text = pdf.pages[page_num].extract_text()
                         if not text.strip():
                             print(f"Warning: Empty content on page {page_num + 1}")
                             continue
-                            
-                        page_chunks = self.text_splitter.split_text(text)
-                        print(f"Created {len(page_chunks)} chunks from page {page_num + 1}")
                         
-                        for chunk in page_chunks:
-                            chunks.append({
-                                'text': chunk,
-                                'metadata': {'page': page_num + 1}
-                            })
+                        # Debug: Print content length
+                        content = text.strip()
+                        print(f"Page {page_num + 1} content length: {len(content)} chars")
+                        
+                        try:
+                            page_chunks = self.text_splitter.split_text(content)
+                            print(f"Created {len(page_chunks)} chunks from page {page_num + 1}")
+                            
+                            for chunk in page_chunks:
+                                if chunk.strip():  # Only add non-empty chunks
+                                    chunks.append({
+                                        'text': chunk,
+                                        'metadata': {'page': page_num + 1}
+                                    })
+                        except Exception as chunk_error:
+                            print(f"Error splitting page {page_num + 1}: {str(chunk_error)}")
                     
                     if not chunks:
                         raise ValueError("No text chunks created from PDF")
