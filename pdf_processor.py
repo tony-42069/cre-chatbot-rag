@@ -37,16 +37,30 @@ class PDFProcessor:
             pages = loader.load()
             print(f"Successfully loaded {len(pages)} pages with PyPDFLoader")
             
+            if not pages:
+                raise ValueError("No pages extracted from PDF")
+                
             # Split the text into chunks
             chunks = []
             for page in pages:
+                if not page.page_content.strip():
+                    print(f"Warning: Empty content on page {page.metadata.get('page', 'unknown')}")
+                    continue
+                    
                 page_chunks = self.text_splitter.split_text(page.page_content)
+                print(f"Created {len(page_chunks)} chunks from page {page.metadata.get('page', 'unknown')}")
+                
                 for chunk in page_chunks:
                     chunks.append({
                         'text': chunk,
                         'metadata': {'page': page.metadata['page']}
                     })
-            print(f"Created {len(chunks)} chunks from PyPDFLoader method")
+            
+            if not chunks:
+                raise ValueError("No text chunks created from PDF")
+                
+            print(f"Created total of {len(chunks)} chunks from PyPDFLoader method")
+            print(f"First chunk preview: {chunks[0]['text'][:200]}...")
             return chunks
             
         except Exception as e:
@@ -63,14 +77,24 @@ class PDFProcessor:
                     
                     for page_num in range(len(pdf.pages)):
                         text = pdf.pages[page_num].extract_text()
+                        if not text.strip():
+                            print(f"Warning: Empty content on page {page_num + 1}")
+                            continue
+                            
                         page_chunks = self.text_splitter.split_text(text)
+                        print(f"Created {len(page_chunks)} chunks from page {page_num + 1}")
                         
                         for chunk in page_chunks:
                             chunks.append({
                                 'text': chunk,
                                 'metadata': {'page': page_num + 1}
                             })
-                    print(f"Created {len(chunks)} chunks from direct pypdf method")
+                    
+                    if not chunks:
+                        raise ValueError("No text chunks created from PDF")
+                        
+                    print(f"Created total of {len(chunks)} chunks from direct pypdf method")
+                    print(f"First chunk preview: {chunks[0]['text'][:200]}...")
                     return chunks
                     
             except Exception as e2:

@@ -59,18 +59,36 @@ class RAGEngine:
         Args:
             chunks (List[Dict]): List of dictionaries containing text and metadata
         """
+        print(f"Initializing vector store with {len(chunks)} chunks")
+        
+        if not chunks:
+            raise ValueError("No text chunks provided. PDF processing may have failed.")
+            
         texts = [chunk['text'] for chunk in chunks]
         metadatas = [chunk['metadata'] for chunk in chunks]
         
+        print(f"First chunk preview: {texts[0][:200]}...")
+        print(f"First chunk metadata: {metadatas[0]}")
+        
         # Create vector store
+        print("Creating Chroma vector store...")
         self.vector_store = Chroma.from_texts(
             texts=texts,
             embedding=self.embeddings,
-            metadatas=metadatas
+            metadatas=metadatas,
+            persist_directory="./chroma_db"  # Add persistence
         )
+        print("Vector store created successfully")
         
         # Initialize QA chain
-        llm = AzureChatOpenAI(temperature=0, model_name="gpt-3.5-turbo", azure_deployment_name=os.getenv('AZURE_OPENAI_DEPLOYMENT_NAME'), azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'), api_key=os.getenv('AZURE_OPENAI_KEY'))
+        print("Initializing QA chain...")
+        llm = AzureChatOpenAI(
+            temperature=0,
+            model_name="gpt-3.5-turbo",
+            azure_deployment_name=os.getenv('AZURE_OPENAI_DEPLOYMENT_NAME'),
+            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
+            api_key=os.getenv('AZURE_OPENAI_KEY')
+        )
         self.qa_chain = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
@@ -78,6 +96,7 @@ class RAGEngine:
                 search_kwargs={"k": 3}
             )
         )
+        print("QA chain initialized successfully")
     
     def answer_question(self, question: str) -> Dict:
         """
