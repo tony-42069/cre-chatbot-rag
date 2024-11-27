@@ -1,4 +1,5 @@
 from typing import List, Dict
+import os
 import pypdf
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -22,10 +23,19 @@ class PDFProcessor:
         Returns:
             List[Dict]: List of text chunks with metadata
         """
+        print(f"Processing PDF at: {os.path.abspath(pdf_path)}")
+        
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF file not found at {pdf_path}")
+            
+        print(f"PDF file exists, size: {os.path.getsize(pdf_path)} bytes")
+        
         try:
+            print("Attempting to use PyPDFLoader...")
             # Try using PyPDFLoader from langchain
             loader = PyPDFLoader(pdf_path)
             pages = loader.load()
+            print(f"Successfully loaded {len(pages)} pages with PyPDFLoader")
             
             # Split the text into chunks
             chunks = []
@@ -36,6 +46,7 @@ class PDFProcessor:
                         'text': chunk,
                         'metadata': {'page': page.metadata['page']}
                     })
+            print(f"Created {len(chunks)} chunks from PyPDFLoader method")
             return chunks
             
         except Exception as e:
@@ -44,8 +55,10 @@ class PDFProcessor:
             
             # Fallback to direct pypdf usage
             try:
+                print("Attempting to use pypdf directly...")
                 with open(pdf_path, 'rb') as file:
                     pdf = pypdf.PdfReader(file)
+                    print(f"Successfully opened PDF with {len(pdf.pages)} pages")
                     chunks = []
                     
                     for page_num in range(len(pdf.pages)):
@@ -57,7 +70,10 @@ class PDFProcessor:
                                 'text': chunk,
                                 'metadata': {'page': page_num + 1}
                             })
+                    print(f"Created {len(chunks)} chunks from direct pypdf method")
                     return chunks
                     
             except Exception as e2:
-                raise Exception(f"Failed to process PDF with both methods. Error: {str(e2)}")
+                error_msg = f"Failed to process PDF with both methods.\nPyPDFLoader error: {str(e)}\npypdf error: {str(e2)}"
+                print(error_msg)
+                raise Exception(error_msg)

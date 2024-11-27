@@ -64,6 +64,14 @@ if not st.session_state.processed_file:
         try:
             # Process the pre-loaded PDF
             pdf_path = os.path.join("Dataset", "Commercial Lending 101.pdf")
+            st.write(f"Looking for PDF at: {os.path.abspath(pdf_path)}")
+            
+            if not os.path.exists(pdf_path):
+                st.error(f"PDF file not found at {pdf_path}")
+                st.stop()
+                
+            st.write(f"PDF file found, size: {os.path.getsize(pdf_path)} bytes")
+            
             processor = PDFProcessor()
             chunks = processor.process_pdf(pdf_path)
             
@@ -72,6 +80,8 @@ if not st.session_state.processed_file:
             st.session_state.processed_file = True
         except Exception as e:
             st.error(f"Error initializing knowledge base: {str(e)}")
+            st.write("Current working directory:", os.getcwd())
+            st.write("Directory contents:", os.listdir())
             st.stop()
 
 # Sidebar with information
